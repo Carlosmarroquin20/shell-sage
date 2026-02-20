@@ -27,7 +27,7 @@ var fixCmd = &cobra.Command{
 
 		// Provide context to AI
 		fmt.Println("🕵️  Scanning history for errors...")
-		
+
 		client := ollama.NewClient()
 		prompt := fmt.Sprintf("Analyze these recent shell commands and identify if there is a mistake in the last one, or suggest a fix for a likely failed command. Usage context: %v. Return a concise fix and explanation.", commands)
 
@@ -46,6 +46,7 @@ var fixCmd = &cobra.Command{
 			PaddingBottom(1).
 			PaddingLeft(2).
 			PaddingRight(2).
+			Width(80).
 			BorderStyle(lipgloss.DoubleBorder()).
 			BorderForeground(lipgloss.Color("208"))
 

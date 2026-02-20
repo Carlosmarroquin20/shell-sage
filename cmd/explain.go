@@ -15,7 +15,7 @@ var explainCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		commandToExplain := strings.Join(args, " ")
-		
+
 		fmt.Printf("🤔 Asking AI to explain: %s...\n", commandToExplain)
 
 		client := ollama.NewClient()
@@ -36,6 +36,7 @@ var explainCmd = &cobra.Command{
 			PaddingBottom(1).
 			PaddingLeft(2).
 			PaddingRight(2).
+			Width(80). // Set fixed width for better wrapping
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("238"))
 

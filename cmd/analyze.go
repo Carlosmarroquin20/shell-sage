@@ -47,6 +47,7 @@ var analyzeCmd = &cobra.Command{
 			PaddingBottom(1).
 			PaddingLeft(2).
 			PaddingRight(2).
+			Width(80).
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62"))
 
