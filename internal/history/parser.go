@@ -10,7 +10,7 @@ import (
 )
 
 // GetRecentCommands reads the last n commands from the shell history file.
-// It attempts to detect the shell environment and find the appropriate history file.
+// It supports bash, zsh, and PowerShell history on Windows.
 func GetRecentCommands(limit int) ([]string, error) {
 	historyFile := getHistoryFilePath()
 	if historyFile == "" {
@@ -19,7 +19,7 @@ func GetRecentCommands(limit int) ([]string, error) {
 
 	file, err := os.Open(historyFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open history file: %w", err)
+		return nil, fmt.Errorf("failed to open history file at %s: %w", historyFile, err)
 	}
 	defer file.Close()
 
@@ -27,8 +27,7 @@ func GetRecentCommands(limit int) ([]string, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Simple cleaning: remove timestamps if present (zsh specific extended history)
-		// This is a naive implementation; robust parsing depends on specific shell config.
+		// Clean zsh extended history format (": <timestamp>:<elapsed>;<command>")
 		if strings.HasPrefix(line, ":") {
 			parts := strings.SplitN(line, ";", 2)
 			if len(parts) == 2 {
@@ -44,7 +43,7 @@ func GetRecentCommands(limit int) ([]string, error) {
 		return nil, fmt.Errorf("error reading history file: %w", err)
 	}
 
-	// Get the last 'limit' lines
+	// Return the last 'limit' lines
 	start := len(lines) - limit
 	if start < 0 {
 		start = 0
@@ -59,22 +58,17 @@ func getHistoryFilePath() string {
 		return ""
 	}
 
-	// Priority 1: Check SHELL env var
-	shell := os.Getenv("SHELL")
-	if strings.Contains(shell, "zsh") {
-		return filepath.Join(home, ".zsh_history")
-	}
-	if strings.Contains(shell, "bash") {
-		return filepath.Join(home, ".bash_history")
-	}
-
-	// Fallback/Windows logic (Powershell history is more complex, using simple check for now)
+	// Windows: check PowerShell history first, then fall back to unix-style
 	if runtime.GOOS == "windows" {
-		// Attempt to find git-bash or generic history if available, 
-		// otherwise might return empty or need PowerShell specific reader.
-		// For this MVP, we will try to look for common unix-like history files even on Windows
-		// assuming the user might be using Git Bash or WSL.
-		
+		// PowerShell history file location (PSReadLine module)
+		appData := os.Getenv("APPDATA")
+		if appData != "" {
+			psHistory := filepath.Join(appData, "Microsoft", "Windows", "PowerShell", "PSReadLine", "ConsoleHost_history.txt")
+			if _, err := os.Stat(psHistory); err == nil {
+				return psHistory
+			}
+		}
+		// Fallback: Git Bash / WSL-style history
 		zshPath := filepath.Join(home, ".zsh_history")
 		if _, err := os.Stat(zshPath); err == nil {
 			return zshPath
@@ -83,6 +77,16 @@ func getHistoryFilePath() string {
 		if _, err := os.Stat(bashPath); err == nil {
 			return bashPath
 		}
+		return ""
+	}
+
+	// Unix/macOS: check SHELL env var first
+	shell := os.Getenv("SHELL")
+	if strings.Contains(shell, "zsh") {
+		return filepath.Join(home, ".zsh_history")
+	}
+	if strings.Contains(shell, "bash") {
+		return filepath.Join(home, ".bash_history")
 	}
 
 	// Default fallback

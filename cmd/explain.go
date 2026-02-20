@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/ollama"
+	"github.com/shell-sage/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
@@ -16,27 +17,31 @@ var explainCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		commandToExplain := strings.Join(args, " ")
 
-		fmt.Printf("🤔 Asking AI to explain: %s...\n", commandToExplain)
+		// Start animated spinner while waiting for AI
+		sp := spinner.New("Consulting the AI sage...")
+		sp.Start()
 
-		client := ollama.NewClient()
+		client := ollama.NewClient(ModelFlag)
 		prompt := fmt.Sprintf("Explain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text: '%s'", commandToExplain)
 
 		response, err := client.Generate(prompt)
+		sp.Stop()
+
 		if err != nil {
-			fmt.Printf("Error communicating with Ollama: %v\n", err)
+			fmt.Printf("❌ Error: %v\n", err)
 			return
 		}
 
 		// Header label
 		headerStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#00D7FF")). // Bright cyan
+			Foreground(lipgloss.Color("#00D7FF")).
 			Background(lipgloss.Color("#1a1a2e")).
 			Padding(0, 1)
 
-		header := headerStyle.Render("⚡ EXPLAIN")
+		header := headerStyle.Render("⚡ EXPLAIN › " + commandToExplain)
 
-		// Body style — no heavy background, clean border
+		// Body style - clean border, no heavy background
 		bodyStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#E0E0E0")).
 			PaddingTop(1).

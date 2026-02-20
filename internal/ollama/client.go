@@ -21,8 +21,13 @@ type Client struct {
 	HTTP    *http.Client
 }
 
-func NewClient() *Client {
-	model := os.Getenv("SSAGE_MODEL")
+// NewClient creates a new Ollama client. If modelOverride is non-empty it takes
+// priority over the SSAGE_MODEL env var and the built-in default.
+func NewClient(modelOverride string) *Client {
+	model := modelOverride
+	if model == "" {
+		model = os.Getenv("SSAGE_MODEL")
+	}
 	if model == "" {
 		model = DefaultModel
 	}

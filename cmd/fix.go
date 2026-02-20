@@ -1,46 +1,57 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/history"
 	"github.com/shell-sage/internal/ollama"
+	"github.com/shell-sage/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
 var fixCmd = &cobra.Command{
 	Use:   "fix",
-	Short: "Fix the last broken command from history",
+	Short: "Analyze recent shell history and suggest a fix for the last error",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Read last 10 commands
+		// Read last 10 commands from history
 		commands, err := history.GetRecentCommands(10)
 		if err != nil {
-			fmt.Printf("Error reading history: %v\n", err)
+			fmt.Printf("❌ Could not read shell history: %v\n", err)
 			return
 		}
 
 		if len(commands) == 0 {
-			fmt.Println("No recent commands found in history.")
+			fmt.Println("⚠️  No recent commands found in history.")
 			return
 		}
 
-		// Provide context to AI
-		fmt.Println("🕵️  Scanning history for errors...")
+		// Start spinner while AI thinks
+		sp := spinner.New("Scanning history for errors...")
+		sp.Start()
 
-		client := ollama.NewClient()
-		prompt := fmt.Sprintf("Analyze these recent shell commands and identify if there is a mistake in the last one, or suggest a fix for a likely failed command. Usage context: %v. Return a concise fix and explanation.", commands)
+		client := ollama.NewClient(ModelFlag)
+		prompt := fmt.Sprintf(
+			"You are a shell expert. Given these recent commands, identify if the last one likely failed and suggest a concise fix in max 3 bullet points. Commands: %s",
+			strings.Join(commands, " | "),
+		)
 
 		response, err := client.Generate(prompt)
+		sp.Stop()
+
 		if err != nil {
-			fmt.Printf("Error communicating with Ollama: %v\n", err)
+			fmt.Printf("❌ Error: %v\n", err)
 			return
 		}
 
 		// Header label
 		headerStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FF8C00")). // Orange
+			Foreground(lipgloss.Color("#FF8C00")).
 			Background(lipgloss.Color("#1a1a2e")).
 			Padding(0, 1)
 
@@ -59,6 +70,19 @@ var fixCmd = &cobra.Command{
 
 		fmt.Println(header)
 		fmt.Println(bodyStyle.Render(response))
+
+		// Offer to copy the suggestion to clipboard
+		fmt.Print("\n📋 Copy suggestion to clipboard? [y/N]: ")
+		reader := bufio.NewReader(os.Stdin)
+		input, _ := reader.ReadString('\n')
+		input = strings.TrimSpace(strings.ToLower(input))
+		if input == "y" || input == "yes" {
+			if err := clipboard.WriteAll(response); err != nil {
+				fmt.Println("❌ Could not copy to clipboard:", err)
+			} else {
+				fmt.Println("✅ Copied to clipboard!")
+			}
+		}
 	},
 }
 

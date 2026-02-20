@@ -6,46 +6,51 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/ollama"
+	"github.com/shell-sage/internal/spinner"
 	"github.com/spf13/cobra"
 )
 
 var analyzeCmd = &cobra.Command{
 	Use:   "analyze [file]",
-	Short: "Analyze an error log file",
+	Short: "Analyze an error log file and summarize critical issues",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		filePath := args[0]
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			fmt.Printf("Error reading file: %v\n", err)
+			fmt.Printf("❌ Error reading file: %v\n", err)
 			return
 		}
 
-		fmt.Printf("🧐 Analyzing %s...\n", filePath)
+		// Start spinner while AI thinks
+		sp := spinner.New(fmt.Sprintf("Analyzing %s...", filePath))
+		sp.Start()
 
-		// Truncate if too long to avoid token limits (rudimentary handling)
+		// Truncate to avoid token limits
 		logContent := string(content)
 		if len(logContent) > 2000 {
 			logContent = logContent[:2000] + "\n...[truncated]..."
 		}
 
-		client := ollama.NewClient()
-		prompt := fmt.Sprintf("You are a system administrator. Analyze this log file snippet and summarize the critical errors: \n\n%s", logContent)
+		client := ollama.NewClient(ModelFlag)
+		prompt := fmt.Sprintf("You are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro: \n\n%s", logContent)
 
 		response, err := client.Generate(prompt)
+		sp.Stop()
+
 		if err != nil {
-			fmt.Printf("Error communicating with Ollama: %v\n", err)
+			fmt.Printf("❌ Error: %v\n", err)
 			return
 		}
 
 		// Header label
 		headerStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#39FF14")). // Neon green
+			Foreground(lipgloss.Color("#39FF14")).
 			Background(lipgloss.Color("#1a1a2e")).
 			Padding(0, 1)
 
-		header := headerStyle.Render("🧠 LOG ANALYSIS")
+		header := headerStyle.Render("🧠 LOG ANALYSIS › " + filePath)
 
 		// Body style
 		bodyStyle := lipgloss.NewStyle().
