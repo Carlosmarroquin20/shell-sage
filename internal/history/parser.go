@@ -9,21 +9,6 @@ import (
 	"strings"
 )
 
-// ErrNoHistoryFile is returned when no recognized history file can be found.
-type ErrNoHistoryFile struct {
-	OS   string
-	Tips []string
-}
-
-func (e *ErrNoHistoryFile) Error() string {
-	msg := fmt.Sprintf("could not find a shell history file on %s.\n", e.OS)
-	msg += "  Possible causes and fixes:\n"
-	for _, tip := range e.Tips {
-		msg += "    • " + tip + "\n"
-	}
-	return msg
-}
-
 // GetRecentCommands reads the last n commands from the shell history file.
 // It supports bash, zsh, and PowerShell (via PSReadLine).
 func GetRecentCommands(limit int) ([]string, error) {
@@ -34,7 +19,7 @@ func GetRecentCommands(limit int) ([]string, error) {
 
 	file, err := os.Open(historyFile)
 	if err != nil {
-		return nil, fmt.Errorf("found history file at '%s' but could not open it: %w\n  Try: check file permissions with 'ls -la %s'", historyFile, err, historyFile)
+		return nil, fmt.Errorf("found history at '%s' but could not open it: %w\n  → Try: check permissions with 'ls -la %s'", historyFile, err, historyFile)
 	}
 	defer file.Close()
 
@@ -42,10 +27,9 @@ func GetRecentCommands(limit int) ([]string, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Clean zsh extended history format (": <timestamp>:<elapsed>;<command>")
+		// Strip zsh extended history format: ": <timestamp>:<elapsed>;<command>"
 		if strings.HasPrefix(line, ":") {
-			parts := strings.SplitN(line, ";", 2)
-			if len(parts) == 2 {
+			if parts := strings.SplitN(line, ";", 2); len(parts) == 2 {
 				line = parts[1]
 			}
 		}
@@ -62,10 +46,11 @@ func GetRecentCommands(limit int) ([]string, error) {
 	if start < 0 {
 		start = 0
 	}
-
 	return lines[start:], nil
 }
 
+// getHistoryFilePath detects the user's shell and returns the appropriate
+// history file path. Returns a descriptive, shell-specific error if not found.
 func getHistoryFilePath() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -73,45 +58,78 @@ func getHistoryFilePath() (string, error) {
 	}
 
 	if runtime.GOOS == "windows" {
-		// Priority 1: PowerShell PSReadLine history
-		appData := os.Getenv("APPDATA")
-		if appData != "" {
-			psHistory := filepath.Join(appData, "Microsoft", "Windows", "PowerShell", "PSReadLine", "ConsoleHost_history.txt")
-			if _, err := os.Stat(psHistory); err == nil {
-				return psHistory, nil
-			}
-		}
-		// Priority 2: Git Bash / WSL bash history
-		bashPath := filepath.Join(home, ".bash_history")
-		if _, err := os.Stat(bashPath); err == nil {
-			return bashPath, nil
-		}
-		// Priority 3: Zsh (rare on Windows but possible via WSL tools)
-		zshPath := filepath.Join(home, ".zsh_history")
-		if _, err := os.Stat(zshPath); err == nil {
-			return zshPath, nil
-		}
+		return windowsHistoryPath(home)
+	}
+	return unixHistoryPath(home)
+}
 
-		return "", &ErrNoHistoryFile{
-			OS: "Windows",
-			Tips: []string{
-				"Make sure PowerShell PSReadLine module is installed: Install-Module PSReadLine",
-				"Or install Git for Windows which includes bash history support",
-				"Run a few commands in PowerShell first — history is created after the first session",
-			},
+// windowsHistoryPath checks PowerShell and bash-compatible history on Windows.
+func windowsHistoryPath(home string) (string, error) {
+	// Priority 1: PowerShell PSReadLine
+	appData := os.Getenv("APPDATA")
+	if appData != "" {
+		psHistory := filepath.Join(appData, "Microsoft", "Windows", "PowerShell", "PSReadLine", "ConsoleHost_history.txt")
+		if _, err := os.Stat(psHistory); err == nil {
+			return psHistory, nil
 		}
 	}
 
-	// Unix/macOS: check SHELL env var
+	// Priority 2: Git Bash history (~/.bash_history)
+	bashPath := filepath.Join(home, ".bash_history")
+	if _, err := os.Stat(bashPath); err == nil {
+		return bashPath, nil
+	}
+
+	// Priority 3: Zsh (rare on Windows but possible)
+	zshPath := filepath.Join(home, ".zsh_history")
+	if _, err := os.Stat(zshPath); err == nil {
+		return zshPath, nil
+	}
+
+	return "", fmt.Errorf(
+		"no shell history found on Windows.\n" +
+			"  PowerShell users:\n" +
+			"    → Install PSReadLine: Install-Module PSReadLine -Force\n" +
+			"    → Restart PowerShell and run a few commands to create history\n" +
+			"  Git Bash users:\n" +
+			"    → Make sure Git for Windows is installed (git-scm.com)\n" +
+			"    → ~/.bash_history is created automatically after the first session",
+	)
+}
+
+// unixHistoryPath checks zsh, bash or common fallback history on Linux/macOS.
+func unixHistoryPath(home string) (string, error) {
 	shell := os.Getenv("SHELL")
+
+	// Zsh
 	if strings.Contains(shell, "zsh") {
-		return filepath.Join(home, ".zsh_history"), nil
-	}
-	if strings.Contains(shell, "bash") {
-		return filepath.Join(home, ".bash_history"), nil
+		p := filepath.Join(home, ".zsh_history")
+		if _, err := os.Stat(p); err != nil {
+			return "", fmt.Errorf(
+				"zsh detected but ~/.zsh_history not found.\n" +
+					"  → Check it exists: ls -la ~/.zsh_history\n" +
+					"  → Make sure HISTFILE is set in your ~/.zshrc: echo $HISTFILE\n" +
+					"  → If empty, add: echo 'HISTFILE=~/.zsh_history' >> ~/.zshrc && source ~/.zshrc",
+			)
+		}
+		return p, nil
 	}
 
-	// Fallback: try both
+	// Bash
+	if strings.Contains(shell, "bash") {
+		p := filepath.Join(home, ".bash_history")
+		if _, err := os.Stat(p); err != nil {
+			return "", fmt.Errorf(
+				"bash detected but ~/.bash_history not found.\n" +
+					"  → Check it exists: ls -la ~/.bash_history\n" +
+					"  → Make sure HISTFILE is set: echo 'HISTFILE=~/.bash_history' >> ~/.bashrc && source ~/.bashrc\n" +
+					"  → Run a few commands and then try again",
+			)
+		}
+		return p, nil
+	}
+
+	// Unknown $SHELL — try common files as fallback
 	for _, f := range []string{".zsh_history", ".bash_history"} {
 		p := filepath.Join(home, f)
 		if _, err := os.Stat(p); err == nil {
@@ -119,12 +137,10 @@ func getHistoryFilePath() (string, error) {
 		}
 	}
 
-	return "", &ErrNoHistoryFile{
-		OS: runtime.GOOS,
-		Tips: []string{
-			"Set the SHELL environment variable (e.g. export SHELL=/bin/zsh)",
-			"Make sure you have run some commands so the history file is created",
-			"Check ~/.bash_history or ~/.zsh_history exist and are readable",
-		},
-	}
+	return "", fmt.Errorf(
+		"could not detect your shell or history file.\n" +
+			"  → Set the SHELL environment variable: export SHELL=$(which zsh)\n" +
+			"  → Or create the history file manually: touch ~/.bash_history\n" +
+			"  → Supported shells: bash, zsh, PowerShell (Windows)",
+	)
 }
