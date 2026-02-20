@@ -19,7 +19,7 @@ var explainCmd = &cobra.Command{
 		fmt.Printf("🤔 Asking AI to explain: %s...\n", commandToExplain)
 
 		client := ollama.NewClient()
-		prompt := fmt.Sprintf("You are an expert in Linux/macOS terminals. Explain briefly what this command does using bullet points for flags: '%s'. Keep it concise.", commandToExplain)
+		prompt := fmt.Sprintf("Explain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text: '%s'", commandToExplain)
 
 		response, err := client.Generate(prompt)
 		if err != nil {
