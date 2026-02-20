@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/history"
 	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
+	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -18,19 +18,17 @@ var fixCmd = &cobra.Command{
 	Use:   "fix",
 	Short: "Analyze recent shell history and suggest a fix for the last error",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Read last 10 commands from history
 		commands, err := history.GetRecentCommands(10)
 		if err != nil {
-			fmt.Printf("❌ Could not read shell history: %v\n", err)
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
 			return
 		}
 
 		if len(commands) == 0 {
-			fmt.Println("⚠️  No recent commands found in history.")
+			fmt.Println(ui.ErrorStyle().Render("⚠️  No recent commands found in history."))
 			return
 		}
 
-		// Start spinner while AI thinks
 		sp := spinner.New("Scanning history for errors...")
 		sp.Start()
 
@@ -44,41 +42,22 @@ var fixCmd = &cobra.Command{
 		sp.Stop()
 
 		if err != nil {
-			fmt.Printf("❌ Error: %v\n", err)
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
 			return
 		}
 
-		// Header label
-		headerStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FF8C00")).
-			Background(lipgloss.Color("#1a1a2e")).
-			Padding(0, 1)
-
-		header := headerStyle.Render("🔧 FIX SUGGESTION")
-
-		// Body style
-		bodyStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E0E0E0")).
-			PaddingTop(1).
-			PaddingBottom(1).
-			PaddingLeft(2).
-			PaddingRight(2).
-			Width(76).
-			BorderStyle(lipgloss.DoubleBorder()).
-			BorderForeground(lipgloss.Color("#FF8C00"))
-
+		header := ui.HeaderStyle(ui.ColorOrange).Render("🔧 FIX SUGGESTION")
 		fmt.Println(header)
-		fmt.Println(bodyStyle.Render(response))
+		fmt.Println(ui.BodyStyleDouble(ui.ColorOrange).Render(response))
 
-		// Offer to copy the suggestion to clipboard
+		// Offer to copy to clipboard
 		fmt.Print("\n📋 Copy suggestion to clipboard? [y/N]: ")
 		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(strings.ToLower(input))
 		if input == "y" || input == "yes" {
 			if err := clipboard.WriteAll(response); err != nil {
-				fmt.Println("❌ Could not copy to clipboard:", err)
+				fmt.Println(ui.ErrorStyle().Render("❌ Could not copy to clipboard: " + err.Error()))
 			} else {
 				fmt.Println("✅ Copied to clipboard!")
 			}

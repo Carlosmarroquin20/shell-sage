@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
+	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +17,6 @@ var explainCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		commandToExplain := strings.Join(args, " ")
 
-		// Start animated spinner while waiting for AI
 		sp := spinner.New("Consulting the AI sage...")
 		sp.Start()
 
@@ -28,32 +27,13 @@ var explainCmd = &cobra.Command{
 		sp.Stop()
 
 		if err != nil {
-			fmt.Printf("❌ Error: %v\n", err)
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
 			return
 		}
 
-		// Header label
-		headerStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#00D7FF")).
-			Background(lipgloss.Color("#1a1a2e")).
-			Padding(0, 1)
-
-		header := headerStyle.Render("⚡ EXPLAIN › " + commandToExplain)
-
-		// Body style - clean border, no heavy background
-		bodyStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E0E0E0")).
-			PaddingTop(1).
-			PaddingBottom(1).
-			PaddingLeft(2).
-			PaddingRight(2).
-			Width(76).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#00D7FF"))
-
+		header := ui.HeaderStyle(ui.ColorCyan).Render("⚡ EXPLAIN › " + commandToExplain)
 		fmt.Println(header)
-		fmt.Println(bodyStyle.Render(response))
+		fmt.Println(ui.BodyStyle(ui.ColorCyan).Render(response))
 	},
 }
 

@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
+	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -18,15 +18,13 @@ var analyzeCmd = &cobra.Command{
 		filePath := args[0]
 		content, err := os.ReadFile(filePath)
 		if err != nil {
-			fmt.Printf("❌ Error reading file: %v\n", err)
+			fmt.Println(ui.ErrorStyle().Render("❌ Error reading file: " + err.Error()))
 			return
 		}
 
-		// Start spinner while AI thinks
 		sp := spinner.New(fmt.Sprintf("Analyzing %s...", filePath))
 		sp.Start()
 
-		// Truncate to avoid token limits
 		logContent := string(content)
 		if len(logContent) > 2000 {
 			logContent = logContent[:2000] + "\n...[truncated]..."
@@ -39,32 +37,13 @@ var analyzeCmd = &cobra.Command{
 		sp.Stop()
 
 		if err != nil {
-			fmt.Printf("❌ Error: %v\n", err)
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
 			return
 		}
 
-		// Header label
-		headerStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#39FF14")).
-			Background(lipgloss.Color("#1a1a2e")).
-			Padding(0, 1)
-
-		header := headerStyle.Render("🧠 LOG ANALYSIS › " + filePath)
-
-		// Body style
-		bodyStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E0E0E0")).
-			PaddingTop(1).
-			PaddingBottom(1).
-			PaddingLeft(2).
-			PaddingRight(2).
-			Width(76).
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#39FF14"))
-
+		header := ui.HeaderStyle(ui.ColorGreen).Render("🧠 LOG ANALYSIS › " + filePath)
 		fmt.Println(header)
-		fmt.Println(bodyStyle.Render(response))
+		fmt.Println(ui.BodyStyle(ui.ColorGreen).Render(response))
 	},
 }
 
