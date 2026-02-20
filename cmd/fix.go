@@ -37,20 +37,28 @@ var fixCmd = &cobra.Command{
 			return
 		}
 
-		// Style output
-		var style = lipgloss.NewStyle().
+		// Header label
+		headerStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#E06C75")). // Red-ish for fix
+			Foreground(lipgloss.Color("#FF8C00")). // Orange
+			Background(lipgloss.Color("#1a1a2e")).
+			Padding(0, 1)
+
+		header := headerStyle.Render("🔧 FIX SUGGESTION")
+
+		// Body style
+		bodyStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#E0E0E0")).
 			PaddingTop(1).
 			PaddingBottom(1).
 			PaddingLeft(2).
 			PaddingRight(2).
-			Width(80).
+			Width(76).
 			BorderStyle(lipgloss.DoubleBorder()).
-			BorderForeground(lipgloss.Color("208"))
+			BorderForeground(lipgloss.Color("#FF8C00"))
 
-		fmt.Println(style.Render(response))
+		fmt.Println(header)
+		fmt.Println(bodyStyle.Render(response))
 	},
 }
 

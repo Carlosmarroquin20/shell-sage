@@ -27,20 +27,28 @@ var explainCmd = &cobra.Command{
 			return
 		}
 
-		// Styling output with lipgloss
-		var style = lipgloss.NewStyle().
+		// Header label
+		headerStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#7D56F4")).
+			Foreground(lipgloss.Color("#00D7FF")). // Bright cyan
+			Background(lipgloss.Color("#1a1a2e")).
+			Padding(0, 1)
+
+		header := headerStyle.Render("⚡ EXPLAIN")
+
+		// Body style — no heavy background, clean border
+		bodyStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#E0E0E0")).
 			PaddingTop(1).
 			PaddingBottom(1).
 			PaddingLeft(2).
 			PaddingRight(2).
-			Width(80). // Set fixed width for better wrapping
+			Width(76).
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("238"))
+			BorderForeground(lipgloss.Color("#00D7FF"))
 
-		fmt.Println(style.Render(response))
+		fmt.Println(header)
+		fmt.Println(bodyStyle.Render(response))
 	},
 }
 

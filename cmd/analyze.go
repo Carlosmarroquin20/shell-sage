@@ -38,20 +38,28 @@ var analyzeCmd = &cobra.Command{
 			return
 		}
 
-		// Style output
-		var style = lipgloss.NewStyle().
+		// Header label
+		headerStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#98C379")). // Green-ish for analysis
+			Foreground(lipgloss.Color("#39FF14")). // Neon green
+			Background(lipgloss.Color("#1a1a2e")).
+			Padding(0, 1)
+
+		header := headerStyle.Render("🧠 LOG ANALYSIS")
+
+		// Body style
+		bodyStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#E0E0E0")).
 			PaddingTop(1).
 			PaddingBottom(1).
 			PaddingLeft(2).
 			PaddingRight(2).
-			Width(80).
+			Width(76).
 			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("62"))
+			BorderForeground(lipgloss.Color("#39FF14"))
 
-		fmt.Println(style.Render(response))
+		fmt.Println(header)
+		fmt.Println(bodyStyle.Render(response))
 	},
 }
 
