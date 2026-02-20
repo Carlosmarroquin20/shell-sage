@@ -97,7 +97,7 @@ func windowsHistoryPath(home string) (string, error) {
 	)
 }
 
-// unixHistoryPath checks zsh, bash or common fallback history on Linux/macOS.
+// unixHistoryPath checks zsh, bash, fish or common fallback history on Linux/macOS.
 func unixHistoryPath(home string) (string, error) {
 	shell := os.Getenv("SHELL")
 
@@ -129,8 +129,21 @@ func unixHistoryPath(home string) (string, error) {
 		return p, nil
 	}
 
-	// Unknown $SHELL — try common files as fallback
-	for _, f := range []string{".zsh_history", ".bash_history"} {
+	// Fish shell — history stored as ~/.local/share/fish/fish_history (YAML-like)
+	if strings.Contains(shell, "fish") {
+		p := filepath.Join(home, ".local", "share", "fish", "fish_history")
+		if _, err := os.Stat(p); err != nil {
+			return "", fmt.Errorf(
+				"fish shell detected but history file not found.\n" +
+					"  → Expected path: ~/.local/share/fish/fish_history\n" +
+					"  → Run a few commands in fish and try again",
+			)
+		}
+		return p, nil
+	}
+
+	// Unknown $SHELL — try common files as fallback in order of popularity
+	for _, f := range []string{".zsh_history", ".bash_history", ".local/share/fish/fish_history"} {
 		p := filepath.Join(home, f)
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
@@ -141,6 +154,6 @@ func unixHistoryPath(home string) (string, error) {
 		"could not detect your shell or history file.\n" +
 			"  → Set the SHELL environment variable: export SHELL=$(which zsh)\n" +
 			"  → Or create the history file manually: touch ~/.bash_history\n" +
-			"  → Supported shells: bash, zsh, PowerShell (Windows)",
+			"  → Supported shells: bash, zsh, fish, PowerShell (Windows)",
 	)
 }

@@ -9,6 +9,9 @@ import (
 // ModelFlag holds the value of the --model flag, available to all subcommands.
 var ModelFlag string
 
+// LangFlag holds the value of the --lang flag (e.g. "es", "fr", "English").
+var LangFlag string
+
 var rootCmd = &cobra.Command{
 	Use:   "ssage",
 	Short: "Shell Sage - Your AI Terminal Assistant",
@@ -23,6 +26,7 @@ func Execute() {
 }
 
 func init() {
-	// Persistent flag available to all subcommands
+	// Persistent flags available to all subcommands
 	rootCmd.PersistentFlags().StringVarP(&ModelFlag, "model", "m", "", "Ollama model to use (e.g. llama3, mistral)")
+	rootCmd.PersistentFlags().StringVarP(&LangFlag, "lang", "l", "", "Response language (e.g. 'es' for Spanish, 'fr' for French)")
 }

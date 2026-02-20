@@ -45,9 +45,14 @@ var fixCmd = &cobra.Command{
 		sp.Start()
 
 		client := ollama.NewClient(ModelFlag)
+
+		lang := "English"
+		if LangFlag != "" {
+			lang = LangFlag
+		}
 		prompt := fmt.Sprintf(
-			"You are a shell expert. Given these recent commands, identify if the last one likely failed and suggest a concise fix in max 3 bullet points. Commands: %s",
-			strings.Join(commands, " | "),
+			"You are a shell expert. Given these recent commands, identify if the last one likely failed and suggest a concise fix in max 3 bullet points. Answer in %s. Commands: %s",
+			lang, strings.Join(commands, " | "),
 		)
 
 		response, err := client.Generate(prompt)

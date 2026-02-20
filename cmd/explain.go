@@ -27,7 +27,15 @@ var explainCmd = &cobra.Command{
 		sp.Start()
 
 		client := ollama.NewClient(ModelFlag)
-		prompt := fmt.Sprintf("Explain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text: '%s'", commandToExplain)
+
+		lang := "English"
+		if LangFlag != "" {
+			lang = LangFlag
+		}
+		prompt := fmt.Sprintf(
+			"Explain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text. Answer in %s: '%s'",
+			lang, commandToExplain,
+		)
 
 		response, err := client.Generate(prompt)
 		sp.Stop()

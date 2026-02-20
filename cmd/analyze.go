@@ -59,7 +59,12 @@ var analyzeCmd = &cobra.Command{
 		sp.Start()
 
 		client := ollama.NewClient(ModelFlag)
-		prompt := fmt.Sprintf("You are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro: \n\n%s", logContent)
+
+		lang := "English"
+		if LangFlag != "" {
+			lang = LangFlag
+		}
+		prompt := fmt.Sprintf("You are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro. Answer in %s: \n\n%s", lang, logContent)
 
 		response, err := client.Generate(prompt)
 		sp.Stop()
