@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
 	"github.com/shell-sage/internal/ollama"
@@ -23,37 +24,62 @@ var explainCmd = &cobra.Command{
 
 		logger.Log.WithField("command", commandToExplain).Info("Starting 'explain' command")
 
-		sp := spinner.New("Consulting the AI sage...")
-		sp.Start()
-
 		lang := "English"
 		if LangFlag != "" {
 			lang = LangFlag
 		}
-		client := ollama.NewClient(ModelFlag)
 		prompt := fmt.Sprintf(
 			"IMPORTANT: You MUST respond ONLY in %s. Do not use any other language.\nExplain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text: '%s'",
 			lang, commandToExplain,
 		)
 
-		response, err := client.Generate(prompt)
-		sp.Stop()
+		client := ollama.NewClient(ModelFlag)
+
+		// Show spinner until first token arrives
+		sp := spinner.New("Consulting the AI sage...")
+		sp.Start()
+		firstToken := true
+
+		borderColor := lipgloss.Color(ui.ColorCyan)
+		header := ui.HeaderStyle(ui.ColorCyan).Render("⚡ EXPLAIN › " + commandToExplain)
+
+		response, err := client.GenerateStream(prompt, func(token string) {
+			if firstToken {
+				sp.Stop()
+				firstToken = false
+				// Print header and open border
+				fmt.Println(header)
+				fmt.Println(lipgloss.NewStyle().Foreground(borderColor).Render("╭" + strings.Repeat("─", 76) + "╮"))
+				fmt.Print(lipgloss.NewStyle().Foreground(borderColor).Render("│") + "  ")
+			}
+			// Print each token, handle newlines to keep box formatting
+			formatted := strings.ReplaceAll(token, "\n", "\n"+lipgloss.NewStyle().Foreground(borderColor).Render("│")+"  ")
+			fmt.Print(formatted)
+		})
+
+		if firstToken {
+			sp.Stop() // In case we never got a token
+		}
 
 		elapsed := time.Since(start)
 
 		if err != nil {
+			if !firstToken {
+				fmt.Println() // Clean newline after partial output
+			}
 			logger.Log.WithError(err).WithField("duration_ms", elapsed.Milliseconds()).Error("'explain' command failed")
 			metrics.Record("explain", elapsed, err.Error())
 			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
 			return
 		}
 
-		logger.Log.WithField("duration_ms", elapsed.Milliseconds()).Info("'explain' command completed successfully")
-		metrics.Record("explain", elapsed, "")
+		// Close the box
+		fmt.Println()
+		fmt.Println(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", 76) + "╯"))
 
-		header := ui.HeaderStyle(ui.ColorCyan).Render("⚡ EXPLAIN › " + commandToExplain)
-		fmt.Println(header)
-		fmt.Println(ui.BodyStyle(ui.ColorCyan).Render(response))
+		logger.Log.WithField("duration_ms", elapsed.Milliseconds()).Info("'explain' command completed")
+		metrics.Record("explain", elapsed, "")
+		_ = response // available if needed later
 	},
 }
 

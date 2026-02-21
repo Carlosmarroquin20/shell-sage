@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
 	"github.com/shell-sage/internal/ollama"
@@ -30,7 +31,7 @@ var analyzeCmd = &cobra.Command{
 		content, err := os.ReadFile(filePath)
 		if err != nil {
 			elapsed := time.Since(start)
-			logger.Log.WithError(err).WithField("file", filePath).Error("Failed to read log file")
+			logger.Log.WithError(err).Error("Failed to read log file")
 			metrics.Record("analyze", elapsed, err.Error())
 			fmt.Println(ui.ErrorStyle().Render("❌ Error reading file: " + err.Error()))
 			return
@@ -40,49 +41,72 @@ var analyzeCmd = &cobra.Command{
 		fullSize := len(logContent)
 		logger.Log.WithField("file_size_chars", fullSize).Info("Log file read")
 
-		// Interactively ask if the file is too large
 		if fullSize > maxLogChars {
 			fmt.Printf("⚠️  Log file is large (%d chars). Send full content to AI? This may be slow. [y/N]: ", fullSize)
 			reader := bufio.NewReader(os.Stdin)
 			input, _ := reader.ReadString('\n')
 			if strings.TrimSpace(strings.ToLower(input)) != "y" {
 				logContent = logContent[:maxLogChars] + "\n...[truncated]..."
-				logger.Log.WithField("truncated_at", maxLogChars).Info("Log content truncated by user choice")
-				fmt.Println("📄 Using first 2000 characters of the log.")
+				logger.Log.WithField("truncated_at", maxLogChars).Info("Log truncated by user choice")
+				fmt.Println("📄 Using first 2000 characters.")
 			} else {
-				logger.Log.Info("User chose to send full log content")
+				logger.Log.Info("User chose to send full log")
 				fmt.Println("📄 Sending full log to AI...")
 			}
 		}
-
-		sp := spinner.New(fmt.Sprintf("Analyzing %s...", filePath))
-		sp.Start()
 
 		lang := "English"
 		if LangFlag != "" {
 			lang = LangFlag
 		}
-		client := ollama.NewClient(ModelFlag)
-		prompt := fmt.Sprintf("IMPORTANT: You MUST respond ONLY in %s. Do not use any other language.\nYou are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro:\n\n%s", lang, logContent)
+		prompt := fmt.Sprintf(
+			"IMPORTANT: You MUST respond ONLY in %s. Do not use any other language.\nYou are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro:\n\n%s",
+			lang, logContent,
+		)
 
-		response, err := client.Generate(prompt)
-		sp.Stop()
+		client := ollama.NewClient(ModelFlag)
+
+		sp := spinner.New(fmt.Sprintf("Analyzing %s...", filePath))
+		sp.Start()
+		firstToken := true
+
+		borderColor := lipgloss.Color(ui.ColorGreen)
+		header := ui.HeaderStyle(ui.ColorGreen).Render("🧠 LOG ANALYSIS › " + filePath)
+
+		response, err := client.GenerateStream(prompt, func(token string) {
+			if firstToken {
+				sp.Stop()
+				firstToken = false
+				fmt.Println(header)
+				fmt.Println(lipgloss.NewStyle().Foreground(borderColor).Render("╭" + strings.Repeat("─", 76) + "╮"))
+				fmt.Print(lipgloss.NewStyle().Foreground(borderColor).Render("│") + "  ")
+			}
+			formatted := strings.ReplaceAll(token, "\n", "\n"+lipgloss.NewStyle().Foreground(borderColor).Render("│")+"  ")
+			fmt.Print(formatted)
+		})
+
+		if firstToken {
+			sp.Stop()
+		}
 
 		elapsed := time.Since(start)
 
 		if err != nil {
-			logger.Log.WithError(err).WithField("duration_ms", elapsed.Milliseconds()).Error("'analyze' command failed during AI generation")
+			if !firstToken {
+				fmt.Println()
+			}
+			logger.Log.WithError(err).Error("'analyze' command failed")
 			metrics.Record("analyze", elapsed, err.Error())
 			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
 			return
 		}
 
-		logger.Log.WithField("duration_ms", elapsed.Milliseconds()).Info("'analyze' command completed successfully")
-		metrics.Record("analyze", elapsed, "")
+		fmt.Println()
+		fmt.Println(lipgloss.NewStyle().Foreground(borderColor).Render("╰" + strings.Repeat("─", 76) + "╯"))
 
-		header := ui.HeaderStyle(ui.ColorGreen).Render("🧠 LOG ANALYSIS › " + filePath)
-		fmt.Println(header)
-		fmt.Println(ui.BodyStyle(ui.ColorGreen).Render(response))
+		logger.Log.WithField("duration_ms", elapsed.Milliseconds()).Info("'analyze' command completed")
+		metrics.Record("analyze", elapsed, "")
+		_ = response
 	},
 }
 
