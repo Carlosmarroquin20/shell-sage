@@ -58,13 +58,12 @@ var analyzeCmd = &cobra.Command{
 		sp := spinner.New(fmt.Sprintf("Analyzing %s...", filePath))
 		sp.Start()
 
-		client := ollama.NewClient(ModelFlag)
-
 		lang := "English"
 		if LangFlag != "" {
 			lang = LangFlag
 		}
-		prompt := fmt.Sprintf("You are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro. Answer in %s: \n\n%s", lang, logContent)
+		client := ollama.NewClient(ModelFlag)
+		prompt := fmt.Sprintf("IMPORTANT: You MUST respond ONLY in %s. Do not use any other language.\nYou are a sysadmin. Analyze this log and summarize the critical errors in max 4 bullet points, no intro:\n\n%s", lang, logContent)
 
 		response, err := client.Generate(prompt)
 		sp.Stop()

@@ -44,14 +44,13 @@ var fixCmd = &cobra.Command{
 		sp := spinner.New("Scanning history for errors...")
 		sp.Start()
 
-		client := ollama.NewClient(ModelFlag)
-
 		lang := "English"
 		if LangFlag != "" {
 			lang = LangFlag
 		}
+		client := ollama.NewClient(ModelFlag)
 		prompt := fmt.Sprintf(
-			"You are a shell expert. Given these recent commands, identify if the last one likely failed and suggest a concise fix in max 3 bullet points. Answer in %s. Commands: %s",
+			"IMPORTANT: You MUST respond ONLY in %s. Do not use any other language.\nYou are a shell expert. Given these recent commands, identify if the last one likely failed and suggest a concise fix in max 3 bullet points. Commands: %s",
 			lang, strings.Join(commands, " | "),
 		)
 

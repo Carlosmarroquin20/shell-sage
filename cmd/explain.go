@@ -26,14 +26,13 @@ var explainCmd = &cobra.Command{
 		sp := spinner.New("Consulting the AI sage...")
 		sp.Start()
 
-		client := ollama.NewClient(ModelFlag)
-
 		lang := "English"
 		if LangFlag != "" {
 			lang = LangFlag
 		}
+		client := ollama.NewClient(ModelFlag)
 		prompt := fmt.Sprintf(
-			"Explain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text. Answer in %s: '%s'",
+			"IMPORTANT: You MUST respond ONLY in %s. Do not use any other language.\nExplain this shell command in max 3 bullet points. Be extremely concise, no intro, no extra text: '%s'",
 			lang, commandToExplain,
 		)
 
