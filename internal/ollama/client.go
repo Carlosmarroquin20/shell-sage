@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/shell-sage/internal/config"
 )
 
 const (
@@ -22,16 +24,24 @@ type Client struct {
 	HTTP    *http.Client
 }
 
-// NewClient creates a new Ollama client. If modelOverride is non-empty it takes
-// priority over the SSAGE_MODEL env var and the built-in default.
+// NewClient creates a new Ollama client. Priority: modelOverride > SSAGE_MODEL > config file > DefaultModel
 func NewClient(modelOverride string) *Client {
 	model := modelOverride
 	if model == "" {
 		model = os.Getenv("SSAGE_MODEL")
 	}
+
+	if model == "" {
+		cfg, err := config.Load()
+		if err == nil && cfg.Model != "" {
+			model = cfg.Model
+		}
+	}
+
 	if model == "" {
 		model = DefaultModel
 	}
+
 	return &Client{
 		BaseURL: DefaultBaseURL,
 		Model:   model,

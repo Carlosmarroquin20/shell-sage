@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/atotto/clipboard"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
@@ -79,7 +80,15 @@ var explainCmd = &cobra.Command{
 
 		logger.Log.WithField("duration_ms", elapsed.Milliseconds()).Info("'explain' command completed")
 		metrics.Record("explain", elapsed, "")
-		_ = response // available if needed later
+
+		if CopyFlag {
+			if err := clipboard.WriteAll(response); err != nil {
+				logger.Log.WithError(err).Warn("Failed to copy to clipboard")
+				fmt.Println(ui.ErrorStyle().Render("\n❌ Could not copy: " + err.Error()))
+			} else {
+				fmt.Println("\n✅ Copied to clipboard!")
+			}
+		}
 	},
 }
 

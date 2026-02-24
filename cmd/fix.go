@@ -93,7 +93,17 @@ var fixCmd = &cobra.Command{
 		logger.Log.WithField("duration_ms", elapsed.Milliseconds()).Info("'fix' command completed")
 		metrics.Record("fix", elapsed, "")
 
-		// Offer clipboard copy
+		if CopyFlag {
+			if err := clipboard.WriteAll(response); err != nil {
+				logger.Log.WithError(err).Warn("Failed to copy to clipboard")
+				fmt.Println(ui.ErrorStyle().Render("\n❌ Could not copy: " + err.Error()))
+			} else {
+				fmt.Println("\n✅ Copied to clipboard!")
+			}
+			return
+		}
+
+		// Offer clipboard copy if not already copied via flag
 		fmt.Print("\n📋 Copy suggestion to clipboard? [y/N]: ")
 		reader := bufio.NewReader(os.Stdin)
 		input, _ := reader.ReadString('\n')
