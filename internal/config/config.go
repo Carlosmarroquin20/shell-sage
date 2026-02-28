@@ -7,8 +7,9 @@ import (
 )
 
 type Config struct {
-	Model string `json:"model"`
-	Lang  string `json:"lang"`
+	Model    string `json:"model"`
+	Lang     string `json:"lang"`
+	Provider string `json:"provider,omitempty"`
 }
 
 func GetConfigPath() (string, error) {

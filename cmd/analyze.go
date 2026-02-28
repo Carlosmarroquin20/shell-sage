@@ -11,7 +11,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
-	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
 	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
@@ -65,7 +64,14 @@ var analyzeCmd = &cobra.Command{
 			lang, logContent,
 		)
 
-		client := ollama.NewClient(ModelFlag)
+		pipe, err := buildPipeline()
+		if err != nil {
+			elapsed := time.Since(start)
+			logger.Log.WithError(err).Error("'analyze' failed to build pipeline")
+			metrics.Record("analyze", elapsed, err.Error())
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
+			return
+		}
 
 		sp := spinner.New(fmt.Sprintf("Analyzing %s...", filePath))
 		sp.Start()
@@ -74,7 +80,7 @@ var analyzeCmd = &cobra.Command{
 		borderColor := lipgloss.Color(ui.ColorGreen)
 		header := ui.HeaderStyle(ui.ColorGreen).Render("🧠 LOG ANALYSIS › " + filePath)
 
-		response, err := client.GenerateStream(prompt, func(token string) {
+		response, err := pipe.RunStream(prompt, "analyze", func(token string) {
 			if firstToken {
 				sp.Stop()
 				firstToken = false

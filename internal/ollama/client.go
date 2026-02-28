@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/shell-sage/internal/config"
+	"github.com/shell-sage/internal/provider"
 )
 
 const (
@@ -146,6 +147,18 @@ func (c *Client) GenerateStream(prompt string, onChunk func(token string)) (stri
 	}
 
 	return full, nil
+}
+
+// Name implements provider.Provider and identifies this backend.
+func (c *Client) Name() string { return "ollama" }
+
+// init registers the Ollama backend with the global provider registry so that
+// any package that blank-imports this package (e.g. main) gets the factory
+// available at startup — the standard database/sql driver pattern.
+func init() {
+	provider.Register("ollama", func(model string) (provider.Provider, error) {
+		return NewClient(model), nil
+	})
 }
 
 // checkStatus returns a descriptive error for non-200 HTTP responses.

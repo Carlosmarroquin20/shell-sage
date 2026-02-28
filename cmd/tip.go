@@ -8,7 +8,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
-	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
 	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
@@ -30,7 +29,14 @@ var tipCmd = &cobra.Command{
 			lang,
 		)
 
-		client := ollama.NewClient(ModelFlag)
+		pipe, err := buildPipeline()
+		if err != nil {
+			elapsed := time.Since(start)
+			logger.Log.WithError(err).Error("'tip' failed to build pipeline")
+			metrics.Record("tip", elapsed, err.Error())
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
+			return
+		}
 
 		sp := spinner.New("Fetching a tip from the sage...")
 		sp.Start()
@@ -39,7 +45,7 @@ var tipCmd = &cobra.Command{
 		borderColor := lipgloss.Color("#FFD700")
 		header := ui.HeaderStyle("#FFD700").Render("💡 TERMINAL TIP")
 
-		response, err := client.GenerateStream(prompt, func(token string) {
+		response, err := pipe.RunStream(prompt, "tip", func(token string) {
 			if firstToken {
 				sp.Stop()
 				firstToken = false

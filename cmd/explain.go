@@ -9,7 +9,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
-	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
 	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
@@ -34,7 +33,14 @@ var explainCmd = &cobra.Command{
 			lang, commandToExplain,
 		)
 
-		client := ollama.NewClient(ModelFlag)
+		pipe, err := buildPipeline()
+		if err != nil {
+			elapsed := time.Since(start)
+			logger.Log.WithError(err).Error("'explain' failed to build pipeline")
+			metrics.Record("explain", elapsed, err.Error())
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
+			return
+		}
 
 		// Show spinner until first token arrives
 		sp := spinner.New("Consulting the AI sage...")
@@ -44,7 +50,7 @@ var explainCmd = &cobra.Command{
 		borderColor := lipgloss.Color(ui.ColorCyan)
 		header := ui.HeaderStyle(ui.ColorCyan).Render("⚡ EXPLAIN › " + commandToExplain)
 
-		response, err := client.GenerateStream(prompt, func(token string) {
+		response, err := pipe.RunStream(prompt, "explain", func(token string) {
 			if firstToken {
 				sp.Stop()
 				firstToken = false

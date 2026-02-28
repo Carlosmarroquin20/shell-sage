@@ -22,6 +22,7 @@ var configCmd = &cobra.Command{
 		fmt.Printf("Config file: %s\n", path)
 		fmt.Printf("Model: %s\n", cfg.Model)
 		fmt.Printf("Language: %s\n", cfg.Lang)
+		fmt.Printf("Provider: %s\n", cfg.Provider)
 	},
 }
 
@@ -44,8 +45,10 @@ var setConfigCmd = &cobra.Command{
 			cfg.Model = value
 		case "lang":
 			cfg.Lang = value
+		case "provider":
+			cfg.Provider = value
 		default:
-			fmt.Printf("Unknown config key: %s (available: model, lang)\n", key)
+			fmt.Printf("Unknown config key: %s (available: model, lang, provider)\n", key)
 			return
 		}
 

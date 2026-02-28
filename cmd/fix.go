@@ -12,7 +12,6 @@ import (
 	"github.com/shell-sage/internal/history"
 	"github.com/shell-sage/internal/logger"
 	"github.com/shell-sage/internal/metrics"
-	"github.com/shell-sage/internal/ollama"
 	"github.com/shell-sage/internal/spinner"
 	"github.com/shell-sage/internal/ui"
 	"github.com/spf13/cobra"
@@ -50,7 +49,14 @@ var fixCmd = &cobra.Command{
 			lang, strings.Join(commands, " | "),
 		)
 
-		client := ollama.NewClient(ModelFlag)
+		pipe, err := buildPipeline()
+		if err != nil {
+			elapsed := time.Since(start)
+			logger.Log.WithError(err).Error("'fix' failed to build pipeline")
+			metrics.Record("fix", elapsed, err.Error())
+			fmt.Println(ui.ErrorStyle().Render("❌ " + err.Error()))
+			return
+		}
 
 		sp := spinner.New("Scanning history for errors...")
 		sp.Start()
@@ -59,7 +65,7 @@ var fixCmd = &cobra.Command{
 		borderColor := lipgloss.Color(ui.ColorOrange)
 		header := ui.HeaderStyle(ui.ColorOrange).Render("🔧 FIX SUGGESTION")
 
-		response, err := client.GenerateStream(prompt, func(token string) {
+		response, err := pipe.RunStream(prompt, "fix", func(token string) {
 			if firstToken {
 				sp.Stop()
 				firstToken = false
